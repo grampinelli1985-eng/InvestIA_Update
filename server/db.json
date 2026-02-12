@@ -1,0 +1,13 @@
+{
+  "users": [
+    {
+      "id": "1770405277267",
+      "name": "Gleidson Fabio Rampinelli",
+      "email": "grampinelli1985@gmail.com",
+      "password": "$2b$10$QLL0UuLEnOUilxoY.Kuqu.4yS7MG47NldeBt6rDQc3sGzZuDQRdF2",
+      "plan": "PREMIUM",
+      "portfolio": [],
+      "alerts": []
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# production
+/dist
+
+# misc
+.DS_Store
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# build logs
+build_error.txt
+build_errors.txt
+build_errors_2.txt
+build_errors_debug.txt
+build_errors_fixed.txt
+tsc_output.txt
+
+# data dumps
+msft_data.json
+test_brapi.js
+
+# local state
+.vscode/
+.idea/
