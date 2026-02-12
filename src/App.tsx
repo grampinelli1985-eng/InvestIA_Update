@@ -40,7 +40,6 @@ function App() {
     const currentView = useNavigationStore(state => state.currentView);
     const setCurrentView = useNavigationStore(state => state.setCurrentView);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-    const refreshPrices = usePortfolioStore(state => state.refreshPrices);
     const alerts = useAlertStore(state => state.alerts);
     const theme = useThemeStore(state => state.theme);
     const setTheme = useThemeStore(state => state.setTheme);
