@@ -81,11 +81,30 @@ const authenticate = (req, res, next) => {
     }
 };
 
-// Rotas de Dados (Exemplo de sincronização futura)
+// Rotas de Dados (Salvamento e Recuperação)
 app.get('/api/user/data', authenticate, (req, res) => {
     const db = getDB();
     const user = db.users.find(u => u.id === req.userId);
-    res.json({ portfolio: user.portfolio, alerts: user.alerts });
+    res.json({
+        portfolio: user.portfolio || [],
+        dividends: user.dividends || [],
+        alerts: user.alerts || []
+    });
+});
+
+app.post('/api/user/save', authenticate, (req, res) => {
+    const { portfolio, dividends, alerts } = req.body;
+    const db = getDB();
+    const userIndex = db.users.findIndex(u => u.id === req.userId);
+
+    if (userIndex === -1) return res.status(404).json({ message: 'Usuário não encontrado.' });
+
+    db.users[userIndex].portfolio = portfolio || [];
+    db.users[userIndex].dividends = dividends || [];
+    db.users[userIndex].alerts = alerts || [];
+
+    saveDB(db);
+    res.json({ success: true });
 });
 
 app.listen(PORT, () => {

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, UserPlus, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
 import { Card } from '../components/Card';
 import { useAuthStore } from '../store/authStore';
+import { supabase } from '../services/supabase';
 
 export const LoginView = () => {
     const [isLogin, setIsLogin] = useState(true);
@@ -19,32 +20,42 @@ export const LoginView = () => {
         e.preventDefault();
         setIsLoading(true);
 
-        const endpoint = isLogin ? '/api/login' : '/api/register';
-        const payload = isLogin
-            ? { email: formData.email, password: formData.password }
-            : formData;
-
-        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
-
         try {
-            const response = await fetch(`${apiBaseUrl}${endpoint}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+            let authResponse;
 
-            const data = await response.json();
-
-            if (response.ok) {
-                login(data.user, data.token);
+            if (isLogin) {
+                authResponse = await supabase.auth.signInWithPassword({
+                    email: formData.email,
+                    password: formData.password,
+                });
             } else {
-                alert(data.message || 'Erro ao processar solicitação.');
+                authResponse = await supabase.auth.signUp({
+                    email: formData.email,
+                    password: formData.password,
+                    options: {
+                        data: {
+                            full_name: formData.name,
+                        }
+                    }
+                });
             }
-        } catch (error) {
-            console.error("Erro de conexão:", error);
 
-            // Fallback para Modo de Demonstração (útil para Netlify sem backend)
-            if (confirm("Não foi possível conectar ao servidor. Deseja entrar em MODO DE DEMONSTRAÇÃO (dados salvos apenas localmente)?")) {
+            if (authResponse.error) throw authResponse.error;
+
+            const { user: supaUser, session } = authResponse.data;
+
+            if (supaUser && session) {
+                login({
+                    id: supaUser.id,
+                    name: supaUser.user_metadata?.full_name || supaUser.email?.split('@')[0] || 'Usuário',
+                    email: supaUser.email || '',
+                    plan: 'PREMIUM'
+                }, session.access_token);
+            }
+        } catch (error: any) {
+            console.error("Erro Supabase:", error);
+
+            if (confirm(`Erro: ${error.message}. Deseja entrar em MODO DE DEMONSTRAÇÃO (dados locais)?`)) {
                 const mockUser = {
                     id: 'demo-' + Date.now(),
                     name: formData.name || 'Usuário Demo',

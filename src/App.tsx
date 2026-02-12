@@ -16,6 +16,7 @@ import { RadarView } from './views/RadarView'
 import { GlobalPulseView } from './views/GlobalPulseView'
 import { PriceMonitorView } from './views/PriceMonitorView'
 import { RentabilidadeView } from './views/RentabilidadeView'
+import { syncService } from './services/syncService'
 import {
     LayoutDashboard,
     Briefcase,
@@ -50,17 +51,48 @@ function App() {
     const [notifications, setNotifications] = useState<AlertNotification[]>([]);
     const lastNotifiedTickers = useRef<Set<string>>(new Set());
 
-    // Carregamento inicial de preços apenas quando autenticado (ANTI-LOOP)
+    // Carregamento inicial de dados e preços apenas quando autenticado (ANTI-LOOP)
+    useEffect(() => {
+        if (!isAuthenticated) {
+            // Se deslogar, limpa o estado local
+            usePortfolioStore.getState().clearPortfolio();
+            useAlertStore.setState({ alerts: [] });
+            return;
+        }
+
+        const loadData = async () => {
+            const token = useAuthStore.getState().token;
+            if (token && token !== 'demo-token') {
+                await syncService.fetchUserData(token);
+            }
+
+            // Após carregar os dados, atualiza preços
+            usePortfolioStore.setState({ isLoadingPrices: false });
+            usePortfolioStore.getState().refreshPrices("App_Mount_Auth");
+        };
+
+        loadData();
+    }, [isAuthenticated]);
+
+    // Sincronização automática para o servidor quando houver mudanças
     useEffect(() => {
         if (!isAuthenticated) return;
 
-        // Força o reset do loading state caso tenha ficado travado em cache/localStorage
-        usePortfolioStore.setState({ isLoadingPrices: false });
+        const token = useAuthStore.getState().token;
+        if (!token || token === 'demo-token') return;
 
-        const store = usePortfolioStore.getState();
-        store.refreshPrices("App_Mount_Auth");
+        // Debounce simples para não sobrecarregar o servidor
+        const timer = setTimeout(() => {
+            syncService.saveUserData(token);
+        }, 2000);
 
-    }, [isAuthenticated]);
+        return () => clearTimeout(timer);
+    }, [
+        usePortfolioStore(state => state.assets),
+        usePortfolioStore(state => state.dividends),
+        alerts,
+        isAuthenticated
+    ]);
 
 
     // Monitoramento global de alertas (preços)
