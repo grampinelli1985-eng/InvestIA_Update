@@ -24,8 +24,10 @@ export const LoginView = () => {
             ? { email: formData.email, password: formData.password }
             : formData;
 
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+
         try {
-            const response = await fetch(`http://localhost:3001${endpoint}`, {
+            const response = await fetch(`${apiBaseUrl}${endpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -40,7 +42,17 @@ export const LoginView = () => {
             }
         } catch (error) {
             console.error("Erro de conexão:", error);
-            alert("Não foi possível conectar ao servidor. Certifique-se de que o backend está rodando.");
+
+            // Fallback para Modo de Demonstração (útil para Netlify sem backend)
+            if (confirm("Não foi possível conectar ao servidor. Deseja entrar em MODO DE DEMONSTRAÇÃO (dados salvos apenas localmente)?")) {
+                const mockUser = {
+                    id: 'demo-' + Date.now(),
+                    name: formData.name || 'Usuário Demo',
+                    email: formData.email || 'demo@investia.com',
+                    plan: 'PREMIUM' as const
+                };
+                login(mockUser, 'demo-token');
+            }
         } finally {
             setIsLoading(false);
         }
