@@ -83,26 +83,28 @@ export const RentabilidadeView = () => {
                     <h1 className="text-3xl font-bold tracking-tight brand-font">Rentabilidade</h1>
                     <p className="text-[var(--text-secondary)] mt-1">Visão integrada de valorização e dividendos recebidos.</p>
                 </div>
-                <div className="flex flex-wrap gap-4">
+                <div className="flex items-center gap-3 sm:gap-4 flex-nowrap overflow-x-auto pb-2 sm:pb-0 no-scrollbar">
                     <button
                         onClick={() => csvService.downloadDividendTemplate()}
-                        className="flex items-center gap-2 bg-[var(--card-bg)] hover:bg-white/10 border border-[var(--border-subtle)] px-4 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95"
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[var(--card-bg)] hover:bg-white/10 border border-[var(--border-subtle)] px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all active:scale-95 whitespace-nowrap"
                     >
-                        <Download size={18} />
-                        Modelo CSV
+                        <Download size={16} className="shrink-0" />
+                        <span className="hidden xs:inline">Modelo CSV</span>
+                        <span className="xs:hidden">Modelo</span>
                     </button>
                     <button
                         onClick={() => setIsResetConfirmOpen(true)}
-                        className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-500 px-4 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95"
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-500 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all active:scale-95 whitespace-nowrap"
                     >
-                        <RotateCcw size={18} />
-                        Resetar Dividendos
+                        <RotateCcw size={16} className="shrink-0" />
+                        <span className="hidden xs:inline">Resetar Dividendos</span>
+                        <span className="xs:hidden">Resetar</span>
                     </button>
                     <button
                         onClick={() => setIsImportModalOpen(true)}
-                        className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-emerald-600/20 active:scale-95"
+                        className="flex-[2] sm:flex-none flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-lg shadow-emerald-600/20 active:scale-95 whitespace-nowrap"
                     >
-                        <FileUp size={18} />
+                        <FileUp size={16} className="shrink-0" />
                         Importar Dividendos
                     </button>
                 </div>
