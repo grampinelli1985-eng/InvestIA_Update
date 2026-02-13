@@ -37,7 +37,12 @@ export const marketService = {
                         pe: f.priceEarnings ?? r.priceEarnings ?? ks.forwardPE,
                         pb: f.priceToBook ?? r.pvp ?? ks.priceToBook,
                         dy: f.dividendYield ?? r.dividendYield ?? sd.dividendYield ?? ks.yield,
-                        roe: f.returnOnEquity ? f.returnOnEquity * 100 : (r.roe || f.roe)
+                        roe: (() => {
+                            const raw = f.returnOnEquity ?? ks.returnOnEquity ?? r.roe ?? f.roe;
+                            if (raw === undefined || raw === null) return undefined;
+                            // Se for um valor decimal (ex: 0.15), converte para percentual (15)
+                            return Math.abs(raw) <= 2 ? raw * 100 : raw;
+                        })()
                     };
                 });
             } catch (e) {

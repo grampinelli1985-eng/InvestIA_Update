@@ -274,8 +274,8 @@ export const RadarView: React.FC = () => {
                                             </div>
                                             <div className="p-3 bg-white/5 rounded-2xl border border-[var(--border-subtle)] flex flex-col items-center justify-center">
                                                 <span className="block text-[7px] text-[var(--text-secondary)] font-black uppercase mb-1 tracking-tighter opacity-70">ROE</span>
-                                                <span className={`text-[11px] font-black ${op.fundamentals.roe && op.fundamentals.roe > 15 ? 'text-emerald-500' : ''}`}>
-                                                    {op.fundamentals.roe ? `${op.fundamentals.roe.toFixed(1)}%` : '--'}
+                                                <span className={`text-[11px] font-black ${(op.fundamentals.roe ?? 0) > 15 ? 'text-emerald-500' : ''}`}>
+                                                    {(op.fundamentals.roe !== undefined && op.fundamentals.roe !== null) ? `${op.fundamentals.roe.toFixed(1)}%` : '--'}
                                                 </span>
                                             </div>
                                         </div>
