@@ -38,10 +38,17 @@ export const marketService = {
                         pb: f.priceToBook ?? r.pvp ?? ks.priceToBook,
                         dy: f.dividendYield ?? r.dividendYield ?? sd.dividendYield ?? ks.yield,
                         roe: (() => {
-                            const raw = f.returnOnEquity ?? ks.returnOnEquity ?? r.roe ?? f.roe;
+                            // Ordem de busca: fundamental, keyStatistics, roots
+                            const raw = f.returnOnEquity ?? ks.returnOnEquity ?? r.roe ?? f.roe ?? r.returnOnEquity;
                             if (raw === undefined || raw === null) return undefined;
+
+                            const num = Number(raw);
+                            if (isNaN(num)) return undefined;
+
                             // Se for um valor decimal (ex: 0.15), converte para percentual (15)
-                            return Math.abs(raw) <= 2 ? raw * 100 : raw;
+                            // Ativos reais dificilmente têm ROE entre 0.0001 e 0.02 que não seja decimal.
+                            // Mas mantemos 0 como 0.
+                            return (num !== 0 && Math.abs(num) <= 2) ? num * 100 : num;
                         })()
                     };
                 });

@@ -110,30 +110,30 @@ export const aiService = {
             const currentPrice = Number(asset.currentPrice) || 0;
             const gap = avgPrice > 0 ? ((avgPrice - currentPrice) / avgPrice) * 100 : 0;
 
-            const pvp = Number(asset.pvp) || 0;
-            const dy = Number(asset.dy) || 0;
-            const pe = Number(asset.pe) || 0;
-            const roe = Number(asset.roe) || 0;
+            const pvp = asset.pvp !== undefined ? Number(asset.pvp) : undefined;
+            const dy = asset.dy !== undefined ? Number(asset.dy) : undefined;
+            const pe = asset.pe !== undefined ? Number(asset.pe) : undefined;
+            const roe = asset.roe !== undefined ? Number(asset.roe) : undefined;
 
             let justificationText = "";
 
             if (isFII) {
-                if (pvp < 0.96) {
-                    justificationText = `OPORTUNIDADE PATRIMONIAL: O P/VP de ${pvp.toFixed(2)} indica um desconto severo sobre os ativos físicos. Com DY de ${dy.toFixed(2)}%, a projeção é de ganho de capital na convergência para o valor justo.`;
-                } else if (dy > 11) {
-                    justificationText = `FOCO EM RENDA: Ativo com excelente yield de ${dy.toFixed(2)}%. Embora o preço esteja próximo ao valor justo, é um ponto estratégico para dividendos.`;
+                if ((pvp ?? 0) < 0.96) {
+                    justificationText = `OPORTUNIDADE PATRIMONIAL: O P/VP de ${(pvp ?? 0).toFixed(2)} indica um desconto severo sobre os ativos físicos. Com DY de ${(dy ?? 0).toFixed(2)}%, a projeção é de ganho de capital na convergência para o valor justo.`;
+                } else if ((dy ?? 0) > 11) {
+                    justificationText = `FOCO EM RENDA: Ativo com excelente yield de ${(dy ?? 0).toFixed(2)}%. Embora o preço esteja próximo ao valor justo, é um ponto estratégico para dividendos.`;
                 } else {
-                    justificationText = `MANUTENÇÃO: FII negociado em patamares estáveis. Projeção de rendimentos constantes de ${dy.toFixed(2)}%.`;
+                    justificationText = `MANUTENÇÃO: FII negociado em patamares estáveis. Projeção de rendimentos constantes de ${(dy ?? 0).toFixed(2)}%.`;
                 }
             } else {
-                if (roe > 18 && pe < 13) {
-                    justificationText = `ALTA QUALIDADE: Empresa eficiente com ROE de ${roe.toFixed(1)}%. O P/L de ${pe.toFixed(1)} revela que o mercado ainda não precificou todo o potencial.`;
+                if ((roe ?? 0) > 18 && (pe ?? 0) < 13 && (pe ?? 0) > 0) {
+                    justificationText = `ALTA QUALIDADE: Empresa eficiente com ROE de ${(roe ?? 0).toFixed(1)}%. O P/L de ${(pe ?? 0).toFixed(1)} revela que o mercado ainda não precificou todo o potencial.`;
                 } else if (gap > 10) {
                     justificationText = `REVERSÃO À MÉDIA: O ativo apresenta um gap de ${gap.toFixed(1)}% contra seu preço médio. O ponto atual visa reduzir seu PM.`;
-                } else if (roe > 25) {
-                    justificationText = `MÁQUINA DE COMPOSTAGEM: ROE excepcional de ${roe.toFixed(1)}%. Capacidade de reinvestimento projeta crescimento superior.`;
+                } else if ((roe ?? 0) > 25) {
+                    justificationText = `MÁQUINA DE COMPOSTAGEM: ROE excepcional de ${(roe ?? 0).toFixed(1)}%. Capacidade de reinvestimento projeta crescimento superior.`;
                 } else {
-                    justificationText = `MONITORAMENTO: P/L de ${pe.toFixed(1)} e ROE de ${roe.toFixed(1)}%. Ativo sólido, sem gatilhos imediatos de subvalorização.`;
+                    justificationText = `MONITORAMENTO: P/L de ${(pe ?? 0).toFixed(1)} e ROE de ${(roe ?? 0).toFixed(1)}%. Ativo sólido, sem gatilhos imediatos de subvalorização.`;
                 }
             }
 
@@ -142,25 +142,25 @@ export const aiService = {
             if (isFII) {
                 // Para FIIs, o Preço Justo é o VPA (Valor Patrimonial por Ação)
                 // Usamos a relação P / (P/VP) para encontrar o VPA
-                justPrice = pvp > 0 ? (currentPrice / pvp) : currentPrice;
+                justPrice = (pvp ?? 0) > 0 ? (currentPrice / (pvp ?? 1)) : currentPrice;
             } else {
                 // Fórmula de Benjamin Graham: VI = sqrt(22.5 * LPA * VPA)
                 // Como LPA = Preço/PE e VPA = Preço/PVP, a fórmula simplificada é:
                 // VI = Preço * sqrt(22.5 / (PE * PVP))
-                if (pe > 0 && pvp > 0) {
-                    const grahamFactor = 22.5 / (pe * pvp);
+                if ((pe ?? 0) > 0 && (pvp ?? 0) > 0) {
+                    const grahamFactor = 22.5 / ((pe ?? 1) * (pvp ?? 1));
                     justPrice = currentPrice * Math.sqrt(grahamFactor);
                 } else {
                     // Fallback para empresas sem lucros ou VP positivos (Crescimento)
-                    justPrice = currentPrice * (1 + (roe / 100));
+                    justPrice = currentPrice * (1 + ((roe ?? 0) / 100));
                 }
             }
 
             // 2. Preço Teto (Método Décio Bazin)
             // Fórmula: Preço Teto = (Média Dividendos 5 anos) / 0.06
             // Como usamos dados em tempo real, utilizamos o DPA (Dividendo por Ação) atual como base
-            const dpa = currentPrice * (dy / 100);
-            const ceilingPrice = dy > 0 ? (dpa / 0.06) : 0;
+            const dpa = currentPrice * ((dy ?? 0) / 100);
+            const ceilingPrice = (dy ?? 0) > 0 ? (dpa / 0.06) : 0;
 
             // 3. Margem de Segurança (Price Gap)
             // Diferença percentual entre o preço atual e o preço justo (Graham/Patrimonial)
@@ -168,10 +168,10 @@ export const aiService = {
 
             const recommendation = (() => {
                 // Nova regra: COMPRA FORTE apenas com UPSIDE (priceGap) > 50% ALÉM dos critérios existentes
-                const isStrongBuyBase = (priceGap >= 20 || (isFII && pvp <= 0.85) || (gap > 15 && priceGap > 0));
+                const isStrongBuyBase = (priceGap >= 20 || (isFII && (pvp ?? 1) <= 0.85) || (gap > 15 && priceGap > 0));
                 if (priceGap > 50 && isStrongBuyBase) return 'COMPRA FORTE';
 
-                if (priceGap >= 5 || (isFII && pvp <= 0.95)) return 'COMPRA';
+                if (priceGap >= 5 || (isFII && (pvp ?? 1) <= 0.95)) return 'COMPRA';
                 if (priceGap >= -5) return 'MANTER';
                 return 'ATENÇÃO';
             })();
