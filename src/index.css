@@ -210,3 +210,78 @@ h6,
 * {
   box-sizing: border-box;
 }
+
+/* Responsive Overrides */
+@media (max-width: 1024px) {
+  .sidebar-collapsed-mobile {
+    width: 0 !important;
+    overflow: hidden;
+    padding: 0 !important;
+    border: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  header {
+    padding: 0 1.5rem !important;
+    height: 4rem !important;
+  }
+
+  main {
+    padding: 1rem !important;
+  }
+
+  .brand-font {
+    font-size: 1.25rem !important;
+  }
+}
+
+/* Orientation Suggestion Overlay */
+.rotation-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--bg-deep);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem;
+  overflow: hidden;
+}
+
+.phone-animation {
+  width: 100px;
+  height: 180px;
+  border: 4px solid var(--text-primary);
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  position: relative;
+  animation: rotatePhone 2s ease-in-out infinite;
+}
+
+.phone-animation::after {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30px;
+  height: 4px;
+  background: var(--text-primary);
+  border-radius: 2px;
+}
+
+@keyframes rotatePhone {
+  0%, 20% { transform: rotate(0deg); }
+  50%, 80% { transform: rotate(90deg); }
+  100% { transform: rotate(90deg); }
+}
+
+/* Hide bits on mobile to save space */
+@media (max-width: 640px) {
+  .mobile-hide {
+    display: none !important;
+  }
+}

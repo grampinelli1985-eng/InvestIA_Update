@@ -82,7 +82,7 @@ export const LoginView = () => {
                 <motion.div
                     initial={{ opacity: 0, x: -50 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="flex flex-col justify-center space-y-8"
+                    className="hidden lg:flex flex-col justify-center space-y-8"
                 >
                     <div className="flex items-center gap-4">
                         <div className="w-16 h-16 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-blue-500/20">
@@ -124,8 +124,9 @@ export const LoginView = () => {
                     initial={{ opacity: 0, x: 50 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.2 }}
+                    className="w-full flex justify-center"
                 >
-                    <Card className="w-full bg-[var(--card-bg)] border border-[var(--border-subtle)] shadow-3xl p-10 rounded-[3rem]">
+                    <Card className="w-full max-w-md lg:max-w-none bg-[var(--card-bg)] border border-[var(--border-subtle)] shadow-3xl p-6 sm:p-10 rounded-[2rem] sm:rounded-[3rem]">
                         <div className="mb-8">
                             <h3 className="text-2xl font-black text-[var(--text-primary)] mb-2 uppercase tracking-tighter">
                                 {isLogin ? 'Bem-vindo de volta' : 'Crie sua conta'}

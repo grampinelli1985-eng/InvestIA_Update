@@ -40,7 +40,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 function App() {
     const currentView = useNavigationStore(state => state.currentView);
     const setCurrentView = useNavigationStore(state => state.setCurrentView);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
+    const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
+    const [isMobile, setIsMobile] = useState(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
     const alerts = useAlertStore(state => state.alerts);
     const theme = useThemeStore(state => state.theme);
     const setTheme = useThemeStore(state => state.setTheme);
@@ -50,6 +52,28 @@ function App() {
 
     const [notifications, setNotifications] = useState<AlertNotification[]>([]);
     const lastNotifiedTickers = useRef<Set<string>>(new Set());
+
+    // Monitor de Redimensionamento e Orientação
+    useEffect(() => {
+        const handleResize = () => {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            setIsPortrait(height > width);
+            setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+
+            // Auto-fechar sidebar em telas pequenas
+            if (width < 1024) {
+                setIsSidebarOpen(false);
+            } else {
+                setIsSidebarOpen(true);
+            }
+        };
+
+        window.addEventListener('resize', handleResize);
+        handleResize(); // Init
+
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // Carregamento inicial de dados e preços apenas quando autenticado (ANTI-LOOP)
     useEffect(() => {
@@ -189,6 +213,30 @@ function App() {
 
     return (
         <div className="min-h-screen bg-[var(--bg-deep)] text-[var(--text-primary)] flex overflow-hidden font-sans selection:bg-blue-500/30 transition-colors duration-300">
+            {/* Orientação Suggestion for Mobile */}
+            <AnimatePresence>
+                {isMobile && isPortrait && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="rotation-overlay"
+                    >
+                        <div className="phone-animation" />
+                        <h3 className="text-2xl font-black mb-2">Gire seu celular</h3>
+                        <p className="text-[var(--text-secondary)] font-medium max-w-[250px]">
+                            Para uma melhor experiência técnica e visualização dos gráficos, utilize o modo horizontal.
+                        </p>
+                        <button
+                            onClick={() => setIsPortrait(false)}
+                            className="mt-8 px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold text-sm uppercase tracking-widest"
+                        >
+                            Continuar mesmo assim
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             <div className="bg-mesh" />
 
             {/* Price Alert Popups */}
@@ -201,9 +249,12 @@ function App() {
             {/* Futuristic Sidebar */}
             <motion.aside
                 initial={false}
-                animate={{ width: isSidebarOpen ? 280 : 88 }}
+                animate={{
+                    width: isSidebarOpen ? 280 : (window.innerWidth < 1024 ? 0 : 88),
+                    opacity: isSidebarOpen || window.innerWidth >= 1024 ? 1 : 0
+                }}
                 transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-                className="glass border-r border-[var(--border-subtle)] flex flex-col z-[60] shrink-0 relative"
+                className={`glass border-r border-[var(--border-subtle)] flex flex-col z-[60] shrink-0 relative ${!isSidebarOpen && window.innerWidth < 1024 ? 'sidebar-collapsed-mobile' : ''}`}
             >
                 <div className="p-6 mb-4 flex items-center gap-3">
                     <motion.div
@@ -324,8 +375,8 @@ function App() {
                             <Menu size={20} />
                         </motion.button>
                         <div className="h-6 w-px bg-[var(--border-subtle)]" />
-                        <h2 className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-[0.3em]">
-                            SYSTEM // {menuItems.find(m => m.id === currentView)?.label}
+                        <h2 className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-[0.3em] truncate max-w-[120px] sm:max-w-none">
+                            {menuItems.find(m => m.id === currentView)?.label}
                         </h2>
                     </div>
 
@@ -358,7 +409,7 @@ function App() {
 
                         <div className="h-10 w-px bg-[var(--border-subtle)]" />
 
-                        <div className="flex flex-col items-end">
+                        <div className="flex flex-col items-end mobile-hide">
                             <span className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1">Market Status</span>
                             {(() => {
                                 const now = new Date();
@@ -387,7 +438,7 @@ function App() {
                 </header>
 
                 {/* Fluid View Transitions */}
-                <main className="flex-1 overflow-y-auto custom-scrollbar relative px-8 py-6">
+                <main className="flex-1 overflow-y-auto custom-scrollbar relative px-4 sm:px-8 py-4 sm:py-6">
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={currentView}
