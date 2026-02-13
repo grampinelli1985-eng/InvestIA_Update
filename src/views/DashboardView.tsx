@@ -67,7 +67,7 @@ export const DashboardView = () => {
 
         filteredAssets.forEach((asset: any) => {
             (asset.transactions || []).forEach((tx: any) => {
-                const date = new Date(tx.date);
+                const date = new Date(tx.date + 'T12:00:00');
                 if (isNaN(date.getTime())) return;
                 const sortKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 

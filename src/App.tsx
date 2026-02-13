@@ -61,9 +61,9 @@ function App() {
         }
 
         const loadData = async () => {
-            const token = useAuthStore.getState().token;
-            if (token && token !== 'demo-token') {
-                await syncService.fetchUserData(token);
+            const user = useAuthStore.getState().user;
+            if (user && user.id && !user.id.startsWith('demo-')) {
+                await syncService.fetchUserData(user.id);
             }
 
             // Após carregar os dados, atualiza preços
@@ -78,12 +78,12 @@ function App() {
     useEffect(() => {
         if (!isAuthenticated) return;
 
-        const token = useAuthStore.getState().token;
-        if (!token || token === 'demo-token') return;
+        const user = useAuthStore.getState().user;
+        if (!user || user.id.startsWith('demo-')) return;
 
         // Debounce simples para não sobrecarregar o servidor
         const timer = setTimeout(() => {
-            syncService.saveUserData(token);
+            syncService.saveUserData(user.id);
         }, 2000);
 
         return () => clearTimeout(timer);

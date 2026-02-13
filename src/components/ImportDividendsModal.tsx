@@ -25,7 +25,7 @@ export const ImportDividendsModal = ({ onClose }: ImportDividendsModalProps) => 
                 return `${year}-${month}-${day}`;
             }
         }
-        const d = new Date(dateStr);
+        const d = new Date(dateStr + 'T12:00:00');
         return !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
     };
 

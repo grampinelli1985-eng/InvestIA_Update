@@ -39,7 +39,7 @@ export const ImportAssetsModal = ({ onClose }: ImportAssetsModalProps) => {
         }
 
         // Handle YYYY-MM-DD or similar
-        const d = new Date(dateStr);
+        const d = new Date(dateStr + 'T12:00:00');
         if (!isNaN(d.getTime())) {
             return d.toISOString().split('T')[0];
         }

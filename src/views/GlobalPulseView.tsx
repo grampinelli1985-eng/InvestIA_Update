@@ -53,7 +53,7 @@ export const GlobalPulseView = () => {
         else if (period === '6M') cutoff.setMonth(now.getMonth() - 6);
         else if (period === 'ALL') cutoff.setFullYear(now.getFullYear() - 1);
 
-        const filtered = history.filter(h => new Date(h.date) >= cutoff);
+        const filtered = history.filter(h => new Date(h.date + 'T12:00:00') >= cutoff);
 
         return filtered.map(h => ({
             name: h.date, // Usamos a data bruta para sorting e ticks
@@ -338,7 +338,7 @@ export const GlobalPulseView = () => {
                                             if (chartData.length < 2) return null;
                                             const first = chartData[0].value;
                                             const last = chartData[chartData.length - 1].value;
-                                            const diff = ((last - first) / first) * 100;
+                                            const diff = last && first ? ((last - first) / first) * 100 : 0;
                                             const trendType = diff > 0.5 ? 'up' : diff < -0.5 ? 'down' : 'neutral';
                                             const trendLabel = trendType === 'up' ? 'Tendência de Alta' : trendType === 'down' ? 'Tendência de Baixa' : 'Lateralizado';
 
