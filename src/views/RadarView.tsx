@@ -157,8 +157,8 @@ export const RadarView: React.FC = () => {
 
     const todayIndex = chartData.findIndex(d => d.projected !== null);
     const refDate =
-        todayIndex > 0
-            ? chartData[todayIndex - 1]?.date
+        todayIndex >= 0
+            ? chartData[todayIndex]?.date
             : chartData[chartData.length - 1]?.date;
 
     // =============================
