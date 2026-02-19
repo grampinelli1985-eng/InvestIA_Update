@@ -25,57 +25,62 @@ export const marketService = {
                 data.results?.forEach((r: any) => {
                     const originalTicker = r.symbol.replace('.SA', '');
 
-                    // Estratégia de Fallback para dados fundamentais explorando múltiplos módulos
-                    const f = r.fundamental || r.fundamentals?.[0] || {};
-                    const sd = r.summaryDetail || {};
-                    const ks = r.defaultKeyStatistics || {};
+                    // Função de Busca Profunda (Deep Scan)
+                    const deepSearch = (obj: any, targets: string[]): any => {
+                        if (!obj || typeof obj !== 'object') return undefined;
+                        for (const target of targets) {
+                            if (obj[target] !== undefined && obj[target] !== null && obj[target] !== 0) {
+                                return obj[target];
+                            }
+                        }
+                        for (const key in obj) {
+                            if (typeof obj[key] === 'object') {
+                                const found = deepSearch(obj[key], targets);
+                                if (found !== undefined) return found;
+                            }
+                        }
+                        return undefined;
+                    };
 
-                    // Mapeamento Robusto
-                    const pe = f.priceEarnings ?? r.priceEarnings ?? ks.forwardPE ?? ks.trailingPE ?? r.priceEarnings;
-                    const pb = f.priceToBook ?? r.pvp ?? ks.priceToBook ?? r.priceToBook;
+                    // Mapeamento via Deep Scan para máxima resiliência
+                    const rawPe = deepSearch(r, ['priceEarnings', 'forwardPE', 'trailingPE']);
+                    const rawPb = deepSearch(r, ['priceToBook', 'pvp', 'priceToBookValue']);
+                    const rawDy = deepSearch(r, ['dividendYield', 'yield', 'yieldPercent']);
+                    const rawRoe = deepSearch(r, ['returnOnEquity', 'roe', 'return_on_equity', 'returnOnEquityTrailing12Months']);
 
-                    // Dividend Yield
-                    const rawDy = f.dividendYield ?? r.dividendYield ?? sd.dividendYield ?? ks.yield ?? ks.dividendYield;
+                    const pe = rawPe !== undefined ? Number(rawPe) : undefined;
+                    const pb = rawPb !== undefined ? Number(rawPb) : undefined;
+
                     const dy = (() => {
                         if (rawDy === undefined || rawDy === null) return undefined;
                         const num = Number(rawDy);
-                        if (isNaN(num)) return undefined;
-                        return (num !== 0 && Math.abs(num) < 1) ? num * 100 : num;
+                        if (isNaN(num) || num === 0) return undefined;
+                        // Converte decimal para percentual
+                        return (Math.abs(num) < 1) ? num * 100 : num;
                     })();
 
                     const roe = (() => {
-                        // 1. Digital Scan: Busca recursiva por qualquer campo que contenha 'returnOnEquity'
-                        const deepSearch = (obj: any, target: string): any => {
-                            if (!obj || typeof obj !== 'object') return undefined;
-                            if (obj[target] !== undefined) return obj[target];
-                            for (const key in obj) {
-                                const found = deepSearch(obj[key], target);
-                                if (found !== undefined) return found;
-                            }
-                            return undefined;
-                        };
-
-                        const raw = deepSearch(r, 'returnOnEquity') ?? r.roe ?? r.return_on_equity;
-                        if (raw === undefined || raw === null) return undefined;
-
-                        const num = Number(raw);
-                        if (isNaN(num)) return undefined;
-                        return (num !== 0 && Math.abs(num) <= 2) ? num * 100 : num;
+                        if (rawRoe === undefined || rawRoe === null) return undefined;
+                        const num = Number(rawRoe);
+                        if (isNaN(num) || num === 0) return undefined;
+                        // Converte decimal para percentual
+                        return (Math.abs(num) <= 2) ? num * 100 : num;
                     })();
 
-                    // Log para debug FINAL em produção
-                    if (originalTicker === 'BRSR6' || originalTicker === 'PETR4') {
-                        console.log(`[Brapi MEGA DEBUG] ${originalTicker} ROE:`, roe, "Full Object:", r);
+                    // Debug para FIIs e Stocks em produção
+                    const isSpecial = /\d/.test(originalTicker) && originalTicker.endsWith('11') || !/\d/.test(originalTicker);
+                    if (isSpecial || originalTicker === 'ITSA4' || originalTicker === 'PINE4') {
+                        console.log(`[Brapi RESILIENT DEBUG] ${originalTicker}:`, { pe, pb, dy, roe, rawDy, rawRoe });
                     }
 
                     resultsMap[originalTicker] = {
                         price: r.regularMarketPrice,
                         changePercent: r.regularMarketChangePercent,
                         updatedAt: r.regularMarketTime,
-                        pe: pe !== undefined ? Number(pe) : undefined,
-                        pb: pb !== undefined ? Number(pb) : undefined,
-                        dy: dy !== undefined ? Number(dy) : undefined,
-                        roe: roe !== undefined ? Number(roe) : undefined
+                        pe,
+                        pb,
+                        dy,
+                        roe
                     };
                 });
             } catch (e) {
