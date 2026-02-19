@@ -56,9 +56,9 @@ export const marketService = {
                         return (num !== 0 && Math.abs(num) <= 2) ? num * 100 : num;
                     })();
 
-                    // Log para debug em produção (remover depois)
-                    if (originalTicker === 'BRSR6' || originalTicker === 'PETR4') {
-                        console.log(`[Brapi Debug] ${originalTicker}:`, { f_roe: f.returnOnEquity, ks_roe: ks.returnOnEquity, sd_roe: sd.returnOnEquity, r_roe: r.roe });
+                    // Log para debug radical em produção (remover depois)
+                    if (originalTicker === 'BRSR6' || originalTicker === 'PETR4' || originalTicker === 'PETR4.SA') {
+                        console.log(`[Brapi FULL Debug] ${originalTicker}:`, r);
                     }
 
                     resultsMap[originalTicker] = {
