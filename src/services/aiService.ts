@@ -105,7 +105,10 @@ export const aiService = {
             const ticker = (asset.ticker || "").toUpperCase();
             if (!ticker) continue;
 
-            const isFII = ticker.endsWith('11');
+            // Melhoria na identificação de FII: checa se termina em 11 E não é explicitamente uma Ação/Unit
+            // Ou se o tipo já estiver definido como 'FII' na carteira
+            const isFII = asset.type === 'FII' || (ticker.endsWith('11') && asset.type !== 'STOCK');
+
             const avgPrice = Number(asset.averagePrice) || 0;
             const currentPrice = Number(asset.currentPrice) || 0;
             const gap = avgPrice > 0 ? ((avgPrice - currentPrice) / avgPrice) * 100 : 0;

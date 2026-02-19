@@ -92,7 +92,7 @@ export const usePortfolioStore = create<any>()(
                             updatedAt: quote?.updatedAt ?? asset.updatedAt,
                             // Restauração dos dados fundamentalistas para o Radar e Insights
                             pe: quote?.pe ?? asset.pe,
-                            pvp: quote?.pb ?? asset.pvp,
+                            pvp: quote?.pb ?? asset.pvp ?? asset.pb,
                             dy: quote?.dy ?? asset.dy,
                             roe: quote?.roe ?? asset.roe
                         };

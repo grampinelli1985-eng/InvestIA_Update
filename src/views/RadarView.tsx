@@ -265,7 +265,9 @@ export const RadarView: React.FC = () => {
                                                     {op.isFII ? 'Yield' : 'P/L'}
                                                 </span>
                                                 <span className="text-[11px] font-black">
-                                                    {op.isFII ? `${op.fundamentals.dy?.toFixed(1)}%` : op.fundamentals.pe?.toFixed(1) || '--'}
+                                                    {op.isFII
+                                                        ? (op.fundamentals.dy !== undefined ? `${op.fundamentals.dy.toFixed(1)}%` : '--')
+                                                        : (op.fundamentals.pe !== undefined ? op.fundamentals.pe.toFixed(1) : '--')}
                                                 </span>
                                             </div>
                                             <div className="p-3 bg-white/5 rounded-2xl border border-[var(--border-subtle)] flex flex-col items-center justify-center">

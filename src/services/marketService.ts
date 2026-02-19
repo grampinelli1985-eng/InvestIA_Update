@@ -30,26 +30,41 @@ export const marketService = {
                     const sd = r.summaryDetail || {};
                     const ks = r.defaultKeyStatistics || {};
 
+                    // Mapeamento Robusto
+                    const pe = f.priceEarnings ?? r.priceEarnings ?? ks.forwardPE ?? ks.trailingPE;
+                    const pb = f.priceToBook ?? r.pvp ?? ks.priceToBook;
+
+                    // Dividend Yield: Brapi costuma retornar em decimal (ex: 0.08) ou percentual (8.0)
+                    // ks.yield ou sd.dividendYield costumam ser as fontes mais confiáveis
+                    const rawDy = f.dividendYield ?? r.dividendYield ?? sd.dividendYield ?? ks.yield ?? ks.dividendYield;
+                    const dy = (() => {
+                        if (rawDy === undefined || rawDy === null) return undefined;
+                        const num = Number(rawDy);
+                        if (isNaN(num)) return undefined;
+                        // Se for menor que 1 e não for zero, provavelmente é decimal (ex: 0.08 -> 8.0%)
+                        return (num !== 0 && Math.abs(num) < 1) ? num * 100 : num;
+                    })();
+
+                    const roe = (() => {
+                        // Ordem de busca: fundamental, keyStatistics, roots
+                        const raw = f.returnOnEquity ?? ks.returnOnEquity ?? r.roe ?? f.roe ?? r.returnOnEquity;
+                        if (raw === undefined || raw === null) return undefined;
+
+                        const num = Number(raw);
+                        if (isNaN(num)) return undefined;
+
+                        // Se for um valor decimal (ex: 0.15), converte para percentual (15)
+                        return (num !== 0 && Math.abs(num) <= 2) ? num * 100 : num;
+                    })();
+
                     resultsMap[originalTicker] = {
                         price: r.regularMarketPrice,
                         changePercent: r.regularMarketChangePercent,
                         updatedAt: r.regularMarketTime,
-                        pe: f.priceEarnings ?? r.priceEarnings ?? ks.forwardPE,
-                        pb: f.priceToBook ?? r.pvp ?? ks.priceToBook,
-                        dy: f.dividendYield ?? r.dividendYield ?? sd.dividendYield ?? ks.yield,
-                        roe: (() => {
-                            // Ordem de busca: fundamental, keyStatistics, roots
-                            const raw = f.returnOnEquity ?? ks.returnOnEquity ?? r.roe ?? f.roe ?? r.returnOnEquity;
-                            if (raw === undefined || raw === null) return undefined;
-
-                            const num = Number(raw);
-                            if (isNaN(num)) return undefined;
-
-                            // Se for um valor decimal (ex: 0.15), converte para percentual (15)
-                            // Ativos reais dificilmente têm ROE entre 0.0001 e 0.02 que não seja decimal.
-                            // Mas mantemos 0 como 0.
-                            return (num !== 0 && Math.abs(num) <= 2) ? num * 100 : num;
-                        })()
+                        pe: pe !== undefined ? Number(pe) : undefined,
+                        pb: pb !== undefined ? Number(pb) : undefined,
+                        dy: dy !== undefined ? Number(dy) : undefined,
+                        roe: roe !== undefined ? Number(roe) : undefined
                     };
                 });
             } catch (e) {
