@@ -18,7 +18,7 @@ export const marketService = {
         for (let i = 0; i < symbols.length; i += CHUNK_SIZE) {
             const chunk = symbols.slice(i, i + CHUNK_SIZE);
             try {
-                const res = await fetch(`https://brapi.dev/api/quote/${chunk.join(',')}?modules=fundamental,summaryDetail,defaultKeyStatistics&token=${BRAPI_TOKEN}`);
+                const res = await fetch(`https://brapi.dev/api/quote/${chunk.join(',')}?modules=fundamental,summaryDetail,defaultKeyStatistics,financialData&token=${BRAPI_TOKEN}`);
                 if (!res.ok) continue;
 
                 const data = await res.json();
@@ -44,21 +44,28 @@ export const marketService = {
                     })();
 
                     const roe = (() => {
-                        // Ordem de busca: fundamental, keyStatistics, summaryDetail, roots
-                        // Brapi às vezes muda o local dependendo do ambiente/ticker
-                        const raw = f.returnOnEquity ?? ks.returnOnEquity ?? sd.returnOnEquity ?? r.roe ?? f.roe ?? r.returnOnEquity;
+                        // 1. Digital Scan: Busca recursiva por qualquer campo que contenha 'returnOnEquity'
+                        const deepSearch = (obj: any, target: string): any => {
+                            if (!obj || typeof obj !== 'object') return undefined;
+                            if (obj[target] !== undefined) return obj[target];
+                            for (const key in obj) {
+                                const found = deepSearch(obj[key], target);
+                                if (found !== undefined) return found;
+                            }
+                            return undefined;
+                        };
+
+                        const raw = deepSearch(r, 'returnOnEquity') ?? r.roe ?? r.return_on_equity;
                         if (raw === undefined || raw === null) return undefined;
 
                         const num = Number(raw);
                         if (isNaN(num)) return undefined;
-
-                        // Se for um valor decimal (ex: 0.15), converte para percentual (15)
                         return (num !== 0 && Math.abs(num) <= 2) ? num * 100 : num;
                     })();
 
-                    // Log para debug radical em produção (remover depois)
-                    if (originalTicker === 'BRSR6' || originalTicker === 'PETR4' || originalTicker === 'PETR4.SA') {
-                        console.log(`[Brapi FULL Debug] ${originalTicker}:`, r);
+                    // Log para debug FINAL em produção
+                    if (originalTicker === 'BRSR6' || originalTicker === 'PETR4') {
+                        console.log(`[Brapi MEGA DEBUG] ${originalTicker} ROE:`, roe, "Full Object:", r);
                     }
 
                     resultsMap[originalTicker] = {
