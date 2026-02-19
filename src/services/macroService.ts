@@ -21,7 +21,7 @@ export interface MacroData {
     trendType?: 'up' | 'down' | 'neutral';
 }
 
-const BRAPI_TOKEN = import.meta.env.VITE_BRAPI_TOKEN || '';
+const BRAPI_TOKEN = import.meta.env.VITE_BRAPI_TOKEN || 'fb3mwjLZkFFyEij5jUU2DB';
 
 export const macroService = {
     fetchMainIndicators: async (): Promise<MacroData[]> => {
