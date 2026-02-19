@@ -31,23 +31,22 @@ export const marketService = {
                     const ks = r.defaultKeyStatistics || {};
 
                     // Mapeamento Robusto
-                    const pe = f.priceEarnings ?? r.priceEarnings ?? ks.forwardPE ?? ks.trailingPE;
-                    const pb = f.priceToBook ?? r.pvp ?? ks.priceToBook;
+                    const pe = f.priceEarnings ?? r.priceEarnings ?? ks.forwardPE ?? ks.trailingPE ?? r.priceEarnings;
+                    const pb = f.priceToBook ?? r.pvp ?? ks.priceToBook ?? r.priceToBook;
 
-                    // Dividend Yield: Brapi costuma retornar em decimal (ex: 0.08) ou percentual (8.0)
-                    // ks.yield ou sd.dividendYield costumam ser as fontes mais confiáveis
+                    // Dividend Yield
                     const rawDy = f.dividendYield ?? r.dividendYield ?? sd.dividendYield ?? ks.yield ?? ks.dividendYield;
                     const dy = (() => {
                         if (rawDy === undefined || rawDy === null) return undefined;
                         const num = Number(rawDy);
                         if (isNaN(num)) return undefined;
-                        // Se for menor que 1 e não for zero, provavelmente é decimal (ex: 0.08 -> 8.0%)
                         return (num !== 0 && Math.abs(num) < 1) ? num * 100 : num;
                     })();
 
                     const roe = (() => {
-                        // Ordem de busca: fundamental, keyStatistics, roots
-                        const raw = f.returnOnEquity ?? ks.returnOnEquity ?? r.roe ?? f.roe ?? r.returnOnEquity;
+                        // Ordem de busca: fundamental, keyStatistics, summaryDetail, roots
+                        // Brapi às vezes muda o local dependendo do ambiente/ticker
+                        const raw = f.returnOnEquity ?? ks.returnOnEquity ?? sd.returnOnEquity ?? r.roe ?? f.roe ?? r.returnOnEquity;
                         if (raw === undefined || raw === null) return undefined;
 
                         const num = Number(raw);
@@ -56,6 +55,11 @@ export const marketService = {
                         // Se for um valor decimal (ex: 0.15), converte para percentual (15)
                         return (num !== 0 && Math.abs(num) <= 2) ? num * 100 : num;
                     })();
+
+                    // Log para debug em produção (remover depois)
+                    if (originalTicker === 'BRSR6' || originalTicker === 'PETR4') {
+                        console.log(`[Brapi Debug] ${originalTicker}:`, { f_roe: f.returnOnEquity, ks_roe: ks.returnOnEquity, sd_roe: sd.returnOnEquity, r_roe: r.roe });
+                    }
 
                     resultsMap[originalTicker] = {
                         price: r.regularMarketPrice,
