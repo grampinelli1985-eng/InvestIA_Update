@@ -277,7 +277,13 @@ export const RadarView: React.FC = () => {
                                             <div className="p-3 bg-white/5 rounded-2xl border border-[var(--border-subtle)] flex flex-col items-center justify-center">
                                                 <span className="block text-[7px] text-[var(--text-secondary)] font-black uppercase mb-1 tracking-tighter opacity-70">ROE</span>
                                                 <span className={`text-[11px] font-black ${(op.fundamentals.roe ?? 0) > 15 ? 'text-emerald-500' : ''}`}>
-                                                    {(op.fundamentals.roe !== undefined && op.fundamentals.roe !== null) ? `${op.fundamentals.roe.toFixed(1)}%` : '--'}
+                                                    {(() => {
+                                                        const val = op.fundamentals.roe;
+                                                        if (op.symbol === 'BRSR6' || op.symbol === 'PETR4') {
+                                                            console.log(`[View Debug] ${op.symbol} fundamental ROE:`, val);
+                                                        }
+                                                        return (val !== undefined && val !== null) ? `${val.toFixed(1)}%` : '--';
+                                                    })()}
                                                 </span>
                                             </div>
                                         </div>

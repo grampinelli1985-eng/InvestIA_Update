@@ -118,6 +118,11 @@ export const aiService = {
             const pe = asset.pe !== undefined ? Number(asset.pe) : undefined;
             const roe = asset.roe !== undefined ? Number(asset.roe) : undefined;
 
+            // Log para rastrear ROE no processamento da IA
+            if (ticker === 'BRSR6' || ticker === 'PETR4') {
+                console.log(`[AI Debug Trace] ${ticker}: asset.roe=`, asset.roe, "processed roe=", roe);
+            }
+
             let justificationText = "";
 
             if (isFII) {
@@ -179,7 +184,7 @@ export const aiService = {
                 return 'ATENÇÃO';
             })();
 
-            list.push({
+            const radarAsset: RadarAsset = {
                 symbol: ticker,
                 category: asset.type || (isFII ? 'FII' : 'Ação'),
                 recommendation,
@@ -203,7 +208,13 @@ export const aiService = {
                 currentPrice,
                 justPrice,
                 ceilingPrice
-            });
+            };
+
+            if (ticker === 'BRSR6' || ticker === 'PETR4') {
+                console.log(`[AI Debug Trace] ${ticker}: Final RadarAsset ROE:`, radarAsset.fundamentals.roe);
+            }
+
+            list.push(radarAsset);
         }
         return list.sort((a, b) => b.priceGap - a.priceGap);
     }
