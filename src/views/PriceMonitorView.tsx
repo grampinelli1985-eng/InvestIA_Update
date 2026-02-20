@@ -1,7 +1,6 @@
 import { LineChart, Bell, Sliders, RefreshCw } from 'lucide-react';
 import { Card } from '../components/Card';
-import { useState, useEffect } from 'react';
-import { marketService } from '../services/marketService';
+import { useState, useEffect, useMemo } from 'react';
 import { usePortfolioStore } from '../store/portfolioStore';
 import { useAlertStore } from '../store/alertStore';
 
@@ -16,8 +15,8 @@ export const PriceMonitorView = () => {
         toggleAIMonitoring
     } = useAlertStore();
 
-    const [quotes, setQuotes] = useState<any>({});
-    const [isLoading, setIsLoading] = useState(true);
+    const refreshPrices = usePortfolioStore(state => state.refreshPrices);
+    const isLoadingPrices = usePortfolioStore(state => state.isLoadingPrices);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'ADD' | 'EDIT'>('ADD');
@@ -29,31 +28,22 @@ export const PriceMonitorView = () => {
         type: 'COMPRA' as 'COMPRA' | 'VENDA'
     });
 
+    // Mapeia assets da store para o formato de quotes usado no monitor
+    const quotes = useMemo(() => {
+        const map: Record<string, any> = {};
+        assets.forEach((a: any) => {
+            map[a.ticker] = {
+                price: a.currentPrice,
+                changePercent: a.changePercent
+            };
+        });
+        return map;
+    }, [assets]);
+
     useEffect(() => {
-        const fetchMarketData = async () => {
-            setIsLoading(true);
-            const tickers = [...new Set([...alerts.map((a: any) => a.ticker), ...assets.map((a: any) => a.ticker)])];
+        refreshPrices("PriceMonitor_Mount");
+    }, []);
 
-            const hasUSStocks = tickers.some(t => /^[A-Z]+$/.test(t));
-            if (hasUSStocks && !tickers.includes('USDBRL=X')) {
-                tickers.push('USDBRL=X');
-            }
-
-            const data = await marketService.fetchQuotes(tickers);
-            const dollarRate = data['USDBRL=X']?.price || 5.0;
-
-            // Ajusta preços de US Stocks para BRL
-            Object.keys(data).forEach(ticker => {
-                if (/^[A-Z]+$/.test(ticker) && ticker !== 'USDBRL=X') {
-                    data[ticker].price = data[ticker].price * dollarRate;
-                }
-            });
-
-            setQuotes(data);
-            setIsLoading(false);
-        };
-        fetchMarketData();
-    }, [assets, alerts]);
 
     const calculateProgress = (a: any) => {
         const current = quotes[a.ticker]?.price;
@@ -143,7 +133,7 @@ export const PriceMonitorView = () => {
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <h3 className="text-xl font-black text-[var(--text-primary)]">{a.ticker}</h3>
-                                            {isLoading && <RefreshCw size={12} className="animate-spin text-[var(--text-secondary)]" />}
+                                            {isLoadingPrices && <RefreshCw size={12} className="animate-spin text-[var(--text-secondary)]" />}
                                         </div>
                                         <span className={`text-[10px] font-black rounded-full px-2 py-0.5 ${a.type === 'COMPRA' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
                                             ALERTA DE {a.type}

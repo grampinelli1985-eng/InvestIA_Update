@@ -131,13 +131,16 @@ function App() {
             }
 
             try {
-                const quotes = await marketService.fetchQuotes(tickers);
-                const dollarRate = quotes['USDBRL=X']?.price || 5.0;
+                const quotes = await marketService.fetchQuotes(tickers, 1);
+                const dollarRate = quotes['USDBRL=X']?.price || 5.8;
 
                 const newNotifications: AlertNotification[] = [];
 
                 alerts.forEach((alert) => {
-                    const quote = quotes[alert.ticker];
+                    const quote = quotes[alert.ticker] ||
+                        quotes[`${alert.ticker}.SA`] ||
+                        quotes[alert.ticker.replace('.SA', '')];
+
                     if (!quote) return;
 
                     let currentPrice = quote.price;

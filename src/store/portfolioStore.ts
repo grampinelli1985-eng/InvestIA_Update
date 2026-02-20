@@ -21,18 +21,16 @@ export const usePortfolioStore = create<any>()(
                 }
 
                 const last = get().lastRefresh || 0;
-                if (now - last < 10000) { // Reduzi para 10s para melhor UX
-                    console.log(`[${refreshId}] Ignorado: Debounce 10s (${caller})`);
+                if (now - last < 5000) { // Debounce de 5s
                     return;
                 }
 
                 console.log(`[${refreshId}] Iniciando sincronização (${caller})...`);
                 set({ isLoadingPrices: true });
 
-                // Proteção contra travamento eterno (30s timeout)
                 const safetyTimeout = setTimeout(() => {
                     if (get().isLoadingPrices) {
-                        console.warn(`[${refreshId}] Timeout atingido (30s). Resetando status para segurança.`);
+                        console.warn(`[${refreshId}] Timeout atingido (30s). Resetando status.`);
                         set({ isLoadingPrices: false });
                     }
                 }, 30000);
@@ -44,7 +42,7 @@ export const usePortfolioStore = create<any>()(
                         return;
                     }
 
-                    const tickers = assets.map((a: any) => a.ticker);
+                    const tickers = [...new Set(assets.map((a: any) => a.ticker as string))] as string[];
                     const hasStocks = assets.some((a: any) => a.type === 'STOCK');
 
                     if (hasStocks && !tickers.includes('USDBRL=X')) {
@@ -52,23 +50,22 @@ export const usePortfolioStore = create<any>()(
                     }
 
                     const quotes = await marketService.fetchQuotes(tickers);
-                    const dollarRate = quotes['USDBRL=X']?.price || 5.8; // Fallback mais atual
+
+                    const dollarRate = quotes['USDBRL=X']?.price || 5.8;
 
                     const updatedAssets = assets.map((asset: any) => {
                         const ticker = asset.ticker.toUpperCase();
-                        // Tenta achar com e sem .SA para garantir o match
                         const quote = quotes[ticker] ||
-                            quotes[ticker.replace('.SA', '')] ||
-                            quotes[`${ticker}.SA`];
+                            quotes[`${ticker}.SA`] ||
+                            quotes[ticker.replace('.SA', '')];
 
+                        const isStock = asset.type === 'STOCK';
                         let currentPriceBRL = asset.currentPrice || 0;
                         let originalPrice = asset.originalCurrentPrice || 0;
 
                         if (quote?.price) {
                             originalPrice = Number(quote.price);
-                            currentPriceBRL = asset.type === 'STOCK'
-                                ? originalPrice * dollarRate
-                                : originalPrice;
+                            currentPriceBRL = isStock ? originalPrice * dollarRate : originalPrice;
                         }
 
                         // Cálculos de Rentabilidade
@@ -87,10 +84,13 @@ export const usePortfolioStore = create<any>()(
                             totalValue,
                             totalInvested,
                             profitPercent,
-                            exchangeRate: asset.type === 'STOCK' ? dollarRate : undefined,
+                            exchangeRate: isStock ? dollarRate : undefined,
                             changePercent: quote?.changePercent ?? asset.changePercent,
                             updatedAt: quote?.updatedAt ?? asset.updatedAt,
-                            // Restauração dos dados fundamentalistas para o Radar e Insights
+                            name: quote?.name ?? asset.name,
+
+                            // PROTEÇÃO DE DADOS FUNDAMENTALISTAS: 
+                            // Só atualiza se o dado novo for válido. Caso contrário, mantém o anterior.
                             pe: quote?.pe ?? asset.pe,
                             pvp: quote?.pb ?? asset.pvp ?? asset.pb,
                             dy: quote?.dy ?? asset.dy,
@@ -103,14 +103,15 @@ export const usePortfolioStore = create<any>()(
                         lastRefresh: Date.now()
                     });
 
-                    console.log(`[${refreshId}] Sincronização finalizada com sucesso.`);
+                    console.log(`[${refreshId}] Sincronização finalizada (${caller}).`);
                 } catch (error) {
-                    console.error(`[${refreshId}] Erro brutal no refresh:`, error);
+                    console.error(`[${refreshId}] Erro no refresh:`, error);
                 } finally {
                     clearTimeout(safetyTimeout);
                     set({ isLoadingPrices: false });
                 }
             },
+
 
             addTransaction: (ticker: string, type: string, transaction: any) => {
                 const { assets } = get();

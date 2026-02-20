@@ -35,7 +35,6 @@ export const RadarView: React.FC = () => {
     // FETCH OPORTUNIDADES (BLINDADO)
     // =============================
     const fetchOpps = async (force = false) => {
-
         if (isAnyLoading) return;
         if (assets.length === 0) return;
 
@@ -54,15 +53,15 @@ export const RadarView: React.FC = () => {
             }
 
             const data = await aiService.getTopOpportunities(currentAssets);
-
             setOpportunities(Array.isArray(data) ? data : []);
 
         } catch (e) {
-            console.error("Erro ao processar radar:", e);
+            console.error("[RadarView] Erro ao processar radar:", e);
         } finally {
             setIsProcessingAI(false);
         }
     };
+
 
     // =============================
     // CLICK DO ATIVO → PROJEÇÃO
@@ -279,8 +278,8 @@ export const RadarView: React.FC = () => {
                                                 <span className={`text-[11px] font-black ${(op.fundamentals.roe ?? 0) > 15 ? 'text-emerald-500' : ''}`}>
                                                     {(() => {
                                                         const val = op.fundamentals.roe;
-                                                        if (op.symbol === 'BRSR6' || op.symbol === 'PETR4') {
-                                                            console.log(`[View Debug] ${op.symbol} fundamental ROE:`, val);
+                                                        if (op.symbol === 'BRSR6' || op.symbol === 'PETR4' || op.symbol === 'ITSA4' || op.symbol === 'PINE4') {
+                                                            console.log(`[Radar Debug] ${op.symbol}: roe=${val}, pe=${op.fundamentals.pe}, pvp=${op.fundamentals.pvp}`);
                                                         }
                                                         return (val !== undefined && val !== null) ? `${val.toFixed(1)}%` : '--';
                                                     })()}
