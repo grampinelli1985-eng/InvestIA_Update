@@ -1,3 +1,5 @@
+import { marketService } from './marketService';
+
 export interface MacroHistory {
     date: string;
     value: number;
@@ -28,7 +30,7 @@ export const macroService = {
         try {
             const results: MacroData[] = [];
 
-            // Busca indicadores macro reais via Brapi v2
+            // 1. Busca indicadores macro reais (SELIC, CDI, IPCA)
             try {
                 const [selicRes, cdiRes, ipcaRes] = await Promise.all([
                     fetch(`https://brapi.dev/api/v2/macro/selic?token=${BRAPI_TOKEN}`).then(r => r.json()),
@@ -40,21 +42,36 @@ export const macroService = {
                 const lastCdi = cdiRes.cdi?.[cdiRes.cdi.length - 1];
                 const lastIpca = ipcaRes.ipca?.[ipcaRes.ipca.length - 1];
 
-                if (lastSelic) results.push({ name: 'SELIC', value: parseFloat(lastSelic.value), suffix: '% a.a.', updatedAt: lastSelic.date });
-                else results.push({ name: 'SELIC', value: 15.00, suffix: '% a.a.', updatedAt: new Date().toISOString() });
+                // Fallbacks atualizados para 2024/2025
+                results.push({
+                    name: 'SELIC',
+                    value: lastSelic ? parseFloat(lastSelic.value) : 13.25,
+                    suffix: '% a.a.',
+                    updatedAt: lastSelic?.date || new Date().toISOString()
+                });
 
-                if (lastCdi) results.push({ name: 'CDI', value: parseFloat(lastCdi.value), suffix: '% a.a.', updatedAt: lastCdi.date });
-                else results.push({ name: 'CDI', value: 14.90, suffix: '% a.a.', updatedAt: new Date().toISOString() });
+                results.push({
+                    name: 'CDI',
+                    value: lastCdi ? parseFloat(lastCdi.value) : 13.15,
+                    suffix: '% a.a.',
+                    updatedAt: lastCdi?.date || new Date().toISOString()
+                });
 
-                if (lastIpca) results.push({ name: 'IPCA', value: parseFloat(lastIpca.value), suffix: '% 12m', updatedAt: lastIpca.date });
-                else results.push({ name: 'IPCA', value: 4.44, suffix: '% 12m', updatedAt: new Date().toISOString() });
+                results.push({
+                    name: 'IPCA',
+                    value: lastIpca ? parseFloat(lastIpca.value) : 4.51,
+                    suffix: '% 12m',
+                    updatedAt: lastIpca?.date || new Date().toISOString()
+                });
+
             } catch (e) {
-                console.warn("Erro ao buscar macros reais, usando fallback.", e);
-                results.push({ name: 'SELIC', value: 15.00, suffix: '% a.a.', updatedAt: new Date().toISOString() });
-                results.push({ name: 'CDI', value: 14.90, suffix: '% a.a.', updatedAt: new Date().toISOString() });
-                results.push({ name: 'IPCA', value: 4.44, suffix: '% 12m', updatedAt: new Date().toISOString() });
+                console.warn("Erro ao buscar indicadores macro, usando fallbacks.", e);
+                results.push({ name: 'SELIC', value: 13.25, suffix: '% a.a.', updatedAt: new Date().toISOString() });
+                results.push({ name: 'CDI', value: 13.15, suffix: '% a.a.', updatedAt: new Date().toISOString() });
+                results.push({ name: 'IPCA', value: 4.51, suffix: '% 12m', updatedAt: new Date().toISOString() });
             }
 
+            // 2. Busca índices e moedas via MarketService
             const mapping = [
                 { ticker: '^BVSP', name: 'IBOVESPA', suffix: ' pts' },
                 { ticker: '^GSPC', name: 'S&P 500', suffix: '' },
@@ -63,40 +80,20 @@ export const macroService = {
                 { ticker: 'USDBRL=X', name: 'Dólar', suffix: '' }
             ];
 
-            const tickerList = mapping.map(m => m.ticker).join(',');
-            const url = `https://brapi.dev/api/quote/${tickerList}?range=1y&interval=1d&token=${BRAPI_TOKEN}`;
+            for (const m of mapping) {
+                try {
+                    const quotes = await marketService.fetchQuotes([m.ticker]);
+                    const item = quotes[m.ticker];
 
-            try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`Erro ao buscar indicadores: ${response.status}`);
-
-                const data = await response.json();
-                mapping.forEach(m => {
-                    const item = data.results?.find((r: any) => r.symbol === m.ticker);
                     if (item) {
-                        const historyMap = new Map();
-
-                        (item.historicalDataPrice || [])
-                            .filter((h: any) => h.close && h.close > 0)
-                            .forEach((h: any) => {
-                                const dateStr = new Date(h.date * 1000).toISOString().split('T')[0];
-                                historyMap.set(dateStr, h.close);
-                            });
-
-                        const todayStr = new Date().toISOString().split('T')[0];
-                        if (item.regularMarketPrice) {
-                            historyMap.set(todayStr, item.regularMarketPrice);
-                        }
-
-                        const history = Array.from(historyMap.entries())
-                            .map(([date, value]) => ({ date, value }))
-                            .sort((a, b) => a.date.localeCompare(b.date));
+                        const historyData = await marketService.fetchHistoricalData(m.ticker, '1y');
 
                         let trendText = "Lateralizado";
                         let trendType: 'up' | 'down' | 'neutral' = 'neutral';
-                        if (history.length >= 2) {
-                            const first = history[0].value;
-                            const last = history[history.length - 1].value;
+
+                        if (historyData.length >= 2) {
+                            const first = historyData[0].price;
+                            const last = historyData[historyData.length - 1].price;
                             if (first > 0) {
                                 const diff = ((last - first) / first) * 100;
                                 if (diff > 0.5) { trendText = `Tendência de Alta (+${diff.toFixed(1)}%)`; trendType = 'up'; }
@@ -106,20 +103,21 @@ export const macroService = {
 
                         results.push({
                             name: m.name,
-                            value: item.regularMarketPrice || 0,
+                            value: item.price || 0,
                             suffix: m.suffix,
-                            updatedAt: new Date().toISOString(),
-                            change24h: item.regularMarketChangePercent ? `${item.regularMarketChangePercent.toFixed(2)}%` : '0.00%',
-                            direction: (item.regularMarketChangePercent || 0) >= 0 ? 'up' : 'down',
-                            history,
+                            updatedAt: item.updatedAt || new Date().toISOString(),
+                            change24h: item.changePercent ? `${item.changePercent.toFixed(2)}%` : '0.00%',
+                            direction: (item.changePercent || 0) >= 0 ? 'up' : 'down',
+                            history: historyData.map(h => ({ date: h.date, value: h.price })),
                             trendText,
                             trendType
                         });
                     }
-                });
-            } catch (e) {
-                console.error("Erro ao carregar indicadores de mercado:", e);
+                } catch (e) {
+                    console.error(`Erro ao carregar indicador ${m.name}:`, e);
+                }
             }
+
             return results;
         } catch (error) {
             console.error("Erro fatal no fetchMainIndicators:", error);
@@ -135,21 +133,18 @@ export const macroService = {
             "Saúde": ["PFE", "JNJ", "UNH", "LLY", "ABBV"]
         };
 
-        const allTickers = Object.values(sectors).flat().join(',');
         try {
-            const response = await fetch(`https://brapi.dev/api/quote/${allTickers}?token=${BRAPI_TOKEN}`);
-            if (!response.ok) throw new Error(`Heatmap error: ${response.status}`);
-
-            const data = await response.json();
+            const allTickers = Object.values(sectors).flat();
+            const quotes = await marketService.fetchQuotes(allTickers);
             const result: Record<string, HeatMapAsset[]> = {};
 
             Object.entries(sectors).forEach(([sector, tickers]) => {
                 result[sector] = tickers.map(ticker => {
-                    const item = data.results?.find((r: any) => r.symbol === ticker);
+                    const item = quotes[ticker];
                     return {
                         symbol: ticker,
-                        change: item?.regularMarketChangePercent || 0,
-                        name: item?.shortName || ticker
+                        change: item?.changePercent || 0,
+                        name: item?.name || ticker
                     };
                 });
             });

@@ -105,28 +105,24 @@ export const aiService = {
             const ticker = (asset.ticker || "").toUpperCase();
             if (!ticker) continue;
 
-            // Melhoria na identificação de FII: checa se termina em 11 E não é explicitamente uma Ação/Unit
+            // Melhoria na identificação de FII: checa se termina em 11 E não é explicitamente uma Ação/Unit/ETF/BDR
             // Ou se o tipo já estiver definido como 'FII' na carteira
-            const isFII = asset.type === 'FII' || (ticker.endsWith('11') && asset.type !== 'STOCK');
+            const isFII = asset.type === 'FII' || (ticker.endsWith('11') && !['STOCK', 'ETF', 'BDR', 'ACAO'].includes(asset.type));
 
             const avgPrice = Number(asset.averagePrice) || 0;
             const currentPrice = Number(asset.currentPrice) || 0;
             const gap = avgPrice > 0 ? ((avgPrice - currentPrice) / avgPrice) * 100 : 0;
 
-            const pvp = asset.pvp !== undefined ? Number(asset.pvp) : undefined;
-            const dy = asset.dy !== undefined ? Number(asset.dy) : undefined;
-            const pe = asset.pe !== undefined ? Number(asset.pe) : undefined;
-            const roe = asset.roe !== undefined ? Number(asset.roe) : undefined;
-
-            // Log para rastrear ROE no processamento da IA
-            if (ticker === 'BRSR6' || ticker === 'PETR4') {
-                console.log(`[AI Debug Trace] ${ticker}: asset.roe=`, asset.roe, "processed roe=", roe);
-            }
+            // O marketService já escala para percentual (0.05 -> 5%)
+            const pvp = asset.pvp != null ? Number(asset.pvp) : undefined;
+            const dy = asset.dy != null ? Number(asset.dy) : undefined;
+            const pe = asset.pe != null ? Number(asset.pe) : undefined;
+            const roe = asset.roe != null ? Number(asset.roe) : undefined;
 
             let justificationText = "";
 
             if (isFII) {
-                if ((pvp ?? 0) < 0.96) {
+                if ((pvp ?? 0) > 0 && (pvp ?? 0) < 0.96) {
                     justificationText = `OPORTUNIDADE PATRIMONIAL: O P/VP de ${(pvp ?? 0).toFixed(2)} indica um desconto severo sobre os ativos físicos. Com DY de ${(dy ?? 0).toFixed(2)}%, a projeção é de ganho de capital na convergência para o valor justo.`;
                 } else if ((dy ?? 0) > 11) {
                     justificationText = `FOCO EM RENDA: Ativo com excelente yield de ${(dy ?? 0).toFixed(2)}%. Embora o preço esteja próximo ao valor justo, é um ponto estratégico para dividendos.`;
@@ -149,42 +145,33 @@ export const aiService = {
             let justPrice = 0;
             if (isFII) {
                 // Para FIIs, o Preço Justo é o VPA (Valor Patrimonial por Ação)
-                // Usamos a relação P / (P/VP) para encontrar o VPA
                 justPrice = (pvp ?? 0) > 0 ? (currentPrice / (pvp ?? 1)) : currentPrice;
             } else {
                 // Fórmula de Benjamin Graham: VI = sqrt(22.5 * LPA * VPA)
-                // Como LPA = Preço/PE e VPA = Preço/PVP, a fórmula simplificada é:
-                // VI = Preço * sqrt(22.5 / (PE * PVP))
                 if ((pe ?? 0) > 0 && (pvp ?? 0) > 0) {
-                    const grahamFactor = 22.5 / ((pe ?? 1) * (pvp ?? 1));
+                    const grahamFactor = 22.5 / (pe! * pvp!);
                     justPrice = currentPrice * Math.sqrt(grahamFactor);
                 } else {
-                    // Fallback para empresas sem lucros ou VP positivos (Crescimento)
                     justPrice = currentPrice * (1 + ((roe ?? 0) / 100));
                 }
             }
 
             // 2. Preço Teto (Método Décio Bazin)
-            // Fórmula: Preço Teto = (Média Dividendos 5 anos) / 0.06
-            // Como usamos dados em tempo real, utilizamos o DPA (Dividendo por Ação) atual como base
             const dpa = currentPrice * ((dy ?? 0) / 100);
             const ceilingPrice = (dy ?? 0) > 0 ? (dpa / 0.06) : 0;
 
             // 3. Margem de Segurança (Price Gap)
-            // Diferença percentual entre o preço atual e o preço justo (Graham/Patrimonial)
             const priceGap = justPrice > 0 ? ((justPrice - currentPrice) / justPrice) * 100 : 0;
 
             const recommendation = (() => {
-                // Nova regra: COMPRA FORTE apenas com UPSIDE (priceGap) > 50% ALÉM dos critérios existentes
                 const isStrongBuyBase = (priceGap >= 20 || (isFII && (pvp ?? 1) <= 0.85) || (gap > 15 && priceGap > 0));
                 if (priceGap > 50 && isStrongBuyBase) return 'COMPRA FORTE';
-
                 if (priceGap >= 5 || (isFII && (pvp ?? 1) <= 0.95)) return 'COMPRA';
                 if (priceGap >= -5) return 'MANTER';
                 return 'ATENÇÃO';
             })();
 
-            const radarAsset: RadarAsset = {
+            list.push({
                 symbol: ticker,
                 category: asset.type || (isFII ? 'FII' : 'Ação'),
                 recommendation,
@@ -208,13 +195,7 @@ export const aiService = {
                 currentPrice,
                 justPrice,
                 ceilingPrice
-            };
-
-            if (ticker === 'BRSR6' || ticker === 'PETR4') {
-                console.log(`[AI Debug Trace] ${ticker}: Final RadarAsset ROE:`, radarAsset.fundamentals.roe);
-            }
-
-            list.push(radarAsset);
+            });
         }
         return list.sort((a, b) => b.priceGap - a.priceGap);
     }

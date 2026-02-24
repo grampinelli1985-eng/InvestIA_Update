@@ -1,18 +1,27 @@
 const BRAPI_TOKEN = import.meta.env.VITE_BRAPI_TOKEN || 'fb3mwjLZkFFyEij5jUU2DB';
 
-/**
- * Utilitário para delay (sleep)
- */
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
- * Normaliza tickers para o padrão BRAPI
+ * Normaliza tickers para o padrão BRAPI/Yahoo
  */
 const normalizeTicker = (ticker: string): string => {
     const upper = ticker.toUpperCase().trim();
-    if (upper.includes('.') || upper.length < 3 || upper === 'USDBRL=X') return upper;
-    // Se tem número, assume ser BR (.SA)
+
+    // Casos especiais que não precisam de sufixo .SA
+    if (
+        upper.startsWith('^') || // Índices (^BVSP, ^GSPC)
+        upper.includes('-') ||    // Crypto (BTC-USD)
+        upper.includes('=') ||    // Moedas (USDBRL=X)
+        upper.includes('.')       // Já tem ponto (AAPL.SA, etc)
+    ) {
+        return upper;
+    }
+
+    // Se tem número e não é um dos casos acima, assume ser BR (.SA)
     if (/\d/.test(upper)) return `${upper}.SA`;
+
+    // US Stocks puras (AAPL, MSFT)
     return upper;
 };
 
@@ -36,7 +45,7 @@ export const marketService = {
         if (!tickers.length) return {};
 
         const symbols = [...new Set(tickers.map(normalizeTicker))];
-        const CHUNK_SIZE = 15; // Reduzido para evitar URLs muito longas e rate limit
+        const CHUNK_SIZE = 15;
         const resultsMap: Record<string, MarketData> = {};
 
         for (let i = 0; i < symbols.length; i += CHUNK_SIZE) {
@@ -50,28 +59,28 @@ export const marketService = {
                     const res = await fetch(url);
 
                     if (res.status === 429) {
-                        console.warn(`[MarketService] Rate limit atingido. Aguardando 2s...`);
                         await delay(2000);
                         attempt++;
                         continue;
                     }
 
-                    if (!res.ok) {
-                        throw new Error(`HTTP error! status: ${res.status}`);
-                    }
+                    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
                     const data = await res.json();
 
                     data.results?.forEach((r: any) => {
-                        const originalTicker = r.symbol.replace('.SA', '');
+                        const symbol = r.symbol;
+                        // Tenta mapear de volta para o ticker original (sem .SA)
+                        const cleanSymbol = symbol.replace('.SA', '');
 
-                        // Função de Busca Profunda para métricas
+                        // Busca Profunda para métricas
                         const deepFetch = (obj: any, keys: string[]): any => {
                             if (!obj || typeof obj !== 'object') return undefined;
                             for (const key of keys) {
                                 if (obj[key] !== undefined && obj[key] !== null) return obj[key];
                             }
                             for (const k in obj) {
+                                if (k === 'historicalDataPrice') continue;
                                 const found = deepFetch(obj[k], keys);
                                 if (found !== undefined) return found;
                             }
@@ -80,43 +89,44 @@ export const marketService = {
 
                         const rawPe = deepFetch(r, ['priceEarnings', 'forwardPE', 'trailingPE']);
                         const rawPb = deepFetch(r, ['priceToBook', 'pvp', 'priceToBookValue']);
-                        const rawDy = deepFetch(r, ['dividendYield', 'yield', 'yieldPercent']);
+                        const rawDy = deepFetch(r, ['dividendYield', 'yield', 'yieldPercent', 'dividendRate']);
                         const rawRoe = deepFetch(r, ['returnOnEquity', 'roe', 'returnOnEquityTrailing12Months']);
 
                         const pe = rawPe != null ? Number(rawPe) : undefined;
                         const pb = rawPb != null ? Number(rawPb) : undefined;
 
-                        // Normalização de Yield e ROE (decimal -> percentual)
-                        const dy = (() => {
-                            if (rawDy == null) return undefined;
-                            const n = Number(rawDy);
-                            return (Math.abs(n) < 1 && n !== 0) ? n * 100 : n;
-                        })();
+                        // Normalização unificada de Yield e ROE
+                        const normalizePercent = (val: any) => {
+                            if (val == null) return undefined;
+                            const n = Number(val);
+                            // Se o valor for decimal pequeno (ex: 0.05), converte para percentual (5%)
+                            // A maioria das APIs retorna 0.05 para 5% ou 5 para 5%. 
+                            // Assumimos que se for < 1 (e não zero), é decimal.
+                            if (Math.abs(n) > 0 && Math.abs(n) < 1) return n * 100;
+                            return n;
+                        };
 
-                        const roe = (() => {
-                            if (rawRoe == null) return undefined;
-                            const n = Number(rawRoe);
-                            return (Math.abs(n) <= 2 && n !== 0) ? n * 100 : n;
-                        })();
-
-                        resultsMap[originalTicker] = {
-                            symbol: r.symbol,
+                        resultsMap[cleanSymbol] = {
+                            symbol: symbol,
                             price: r.regularMarketPrice,
                             changePercent: r.regularMarketChangePercent,
                             updatedAt: r.regularMarketTime,
-                            name: r.longName,
+                            name: r.longName || r.shortName,
                             pe,
                             pb,
-                            dy,
-                            roe
+                            dy: normalizePercent(rawDy),
+                            roe: normalizePercent(rawRoe)
                         };
+
+                        // Também guarda com o símbolo original da API para garantir
+                        resultsMap[symbol] = resultsMap[cleanSymbol];
                     });
 
                     success = true;
                 } catch (e) {
                     attempt++;
-                    console.error(`[MarketService] Falha na tentativa ${attempt} para chunk ${i}:`, e);
                     if (attempt <= retries) await delay(1000 * attempt);
+                    else console.error(`[MarketService] Falha final para chunk ${i}:`, e);
                 }
             }
         }
@@ -125,11 +135,11 @@ export const marketService = {
     },
 
     /**
-     * Busca dados históricos com conversão de moeda para US Stocks
+     * Busca dados históricos com conversão de moeda
      */
     fetchHistoricalData: async (ticker: string, range = '1y'): Promise<{ date: string, price: number }[]> => {
-        const isUSStock = /^[A-Z]+$/.test(ticker.toUpperCase()) && ticker.length <= 5;
         const symbol = normalizeTicker(ticker);
+        const isUSStock = !symbol.endsWith('.SA') && !symbol.startsWith('^') && !symbol.includes('-') && !symbol.includes('=');
 
         try {
             let usdBrlRate = 1;

@@ -10,13 +10,12 @@ export const usePortfolioStore = create<any>()(
             isLoadingPrices: false,
             lastRefresh: 0,
 
-            refreshPrices: async (caller = "Desconhecido") => {
+            refreshPrices: async () => {
                 const now = Date.now();
                 const refreshId = Math.random().toString(36).substring(7);
 
                 // 1. Verificação de Bloqueio (Debounce e Concorrência)
                 if (get().isLoadingPrices) {
-                    console.log(`[${refreshId}] Ignorado: Já existe sincronização em curso (${caller})`);
                     return;
                 }
 
@@ -25,12 +24,10 @@ export const usePortfolioStore = create<any>()(
                     return;
                 }
 
-                console.log(`[${refreshId}] Iniciando sincronização (${caller})...`);
                 set({ isLoadingPrices: true });
 
                 const safetyTimeout = setTimeout(() => {
                     if (get().isLoadingPrices) {
-                        console.warn(`[${refreshId}] Timeout atingido (30s). Resetando status.`);
                         set({ isLoadingPrices: false });
                     }
                 }, 30000);
@@ -42,30 +39,31 @@ export const usePortfolioStore = create<any>()(
                         return;
                     }
 
+                    // Pega todos os tickers e garante que temos a cotação do dólar
                     const tickers = [...new Set(assets.map((a: any) => a.ticker as string))] as string[];
-                    const hasStocks = assets.some((a: any) => a.type === 'STOCK');
-
-                    if (hasStocks && !tickers.includes('USDBRL=X')) {
+                    if (!tickers.includes('USDBRL=X')) {
                         tickers.push('USDBRL=X');
                     }
 
                     const quotes = await marketService.fetchQuotes(tickers);
-
                     const dollarRate = quotes['USDBRL=X']?.price || 5.8;
 
                     const updatedAssets = assets.map((asset: any) => {
                         const ticker = asset.ticker.toUpperCase();
+                        // Tenta encontrar a cotação pelo ticker original ou normalizado
                         const quote = quotes[ticker] ||
                             quotes[`${ticker}.SA`] ||
-                            quotes[ticker.replace('.SA', '')];
+                            quotes[Object.keys(quotes).find(k => k.startsWith(ticker)) || ""];
 
-                        const isStock = asset.type === 'STOCK';
+                        const isInternational = asset.type === 'STOCK' || asset.type === 'CRYPTO';
                         let currentPriceBRL = asset.currentPrice || 0;
                         let originalPrice = asset.originalCurrentPrice || 0;
 
                         if (quote?.price) {
                             originalPrice = Number(quote.price);
-                            currentPriceBRL = isStock ? originalPrice * dollarRate : originalPrice;
+                            // SÓ converte para BRL se for ativo internacional (STOCK/CRYPTO)
+                            // Ações BR, FIIs, BDRs já vêm em BRL da BRAPI
+                            currentPriceBRL = isInternational ? originalPrice * dollarRate : originalPrice;
                         }
 
                         // Cálculos de Rentabilidade
@@ -84,15 +82,15 @@ export const usePortfolioStore = create<any>()(
                             totalValue,
                             totalInvested,
                             profitPercent,
-                            exchangeRate: isStock ? dollarRate : undefined,
+                            exchangeRate: isInternational ? dollarRate : 1.0,
                             changePercent: quote?.changePercent ?? asset.changePercent,
                             updatedAt: quote?.updatedAt ?? asset.updatedAt,
                             name: quote?.name ?? asset.name,
 
                             // PROTEÇÃO DE DADOS FUNDAMENTALISTAS: 
-                            // Só atualiza se o dado novo for válido. Caso contrário, mantém o anterior.
+                            // O marketService já entrega os dados normalizados (escalados para %)
                             pe: quote?.pe ?? asset.pe,
-                            pvp: quote?.pb ?? asset.pvp ?? asset.pb,
+                            pvp: quote?.pb ?? asset.pvp,
                             dy: quote?.dy ?? asset.dy,
                             roe: quote?.roe ?? asset.roe
                         };
@@ -103,7 +101,6 @@ export const usePortfolioStore = create<any>()(
                         lastRefresh: Date.now()
                     });
 
-                    console.log(`[${refreshId}] Sincronização finalizada (${caller}).`);
                 } catch (error) {
                     console.error(`[${refreshId}] Erro no refresh:`, error);
                 } finally {
