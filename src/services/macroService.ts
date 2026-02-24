@@ -42,33 +42,33 @@ export const macroService = {
                 const lastCdi = cdiRes.cdi?.[cdiRes.cdi.length - 1];
                 const lastIpca = ipcaRes.ipca?.[ipcaRes.ipca.length - 1];
 
-                // Fallbacks atualizados para 2024/2025
+                // Fallbacks atualizados para o contexto de 2026 (Usuário indicou SELIC 15%)
                 results.push({
                     name: 'SELIC',
-                    value: lastSelic ? parseFloat(lastSelic.value) : 13.25,
+                    value: lastSelic ? parseFloat(lastSelic.value) : 15.00,
                     suffix: '% a.a.',
                     updatedAt: lastSelic?.date || new Date().toISOString()
                 });
 
                 results.push({
                     name: 'CDI',
-                    value: lastCdi ? parseFloat(lastCdi.value) : 13.15,
+                    value: lastCdi ? parseFloat(lastCdi.value) : 14.90,
                     suffix: '% a.a.',
                     updatedAt: lastCdi?.date || new Date().toISOString()
                 });
 
                 results.push({
                     name: 'IPCA',
-                    value: lastIpca ? parseFloat(lastIpca.value) : 4.51,
+                    value: lastIpca ? parseFloat(lastIpca.value) : 4.44,
                     suffix: '% 12m',
                     updatedAt: lastIpca?.date || new Date().toISOString()
                 });
 
             } catch (e) {
                 console.warn("Erro ao buscar indicadores macro, usando fallbacks.", e);
-                results.push({ name: 'SELIC', value: 13.25, suffix: '% a.a.', updatedAt: new Date().toISOString() });
-                results.push({ name: 'CDI', value: 13.15, suffix: '% a.a.', updatedAt: new Date().toISOString() });
-                results.push({ name: 'IPCA', value: 4.51, suffix: '% 12m', updatedAt: new Date().toISOString() });
+                results.push({ name: 'SELIC', value: 15.00, suffix: '% a.a.', updatedAt: new Date().toISOString() });
+                results.push({ name: 'CDI', value: 14.90, suffix: '% a.a.', updatedAt: new Date().toISOString() });
+                results.push({ name: 'IPCA', value: 4.44, suffix: '% 12m', updatedAt: new Date().toISOString() });
             }
 
             // 2. Busca índices e moedas via MarketService
