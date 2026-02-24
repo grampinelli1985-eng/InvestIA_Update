@@ -259,26 +259,32 @@ export const RadarView: React.FC = () => {
                                         </p>
 
                                         <div className="grid grid-cols-3 gap-2 mt-auto">
+                                            {/* Slot 1: Yield */}
                                             <div className="p-3 bg-white/5 rounded-2xl border border-[var(--border-subtle)] flex flex-col items-center justify-center">
-                                                <span className="block text-[7px] text-[var(--text-secondary)] font-black uppercase mb-1 tracking-tighter opacity-70">
-                                                    {op.isFII ? 'Yield' : 'P/L'}
-                                                </span>
-                                                <span className="text-[11px] font-black">
-                                                    {op.isFII
-                                                        ? (op.fundamentals.dy !== undefined ? `${op.fundamentals.dy.toFixed(1)}%` : '--')
-                                                        : (op.fundamentals.pe !== undefined ? op.fundamentals.pe.toFixed(1) : '--')}
+                                                <span className="block text-[7px] text-[var(--text-secondary)] font-black uppercase mb-1 tracking-tighter opacity-70">Yield</span>
+                                                <span className={`text-[11px] font-black ${(op.fundamentals.dy ?? 0) > 10 ? 'text-emerald-400' : ''}`}>
+                                                    {op.fundamentals.dy != null && op.fundamentals.dy > 0 ? `${op.fundamentals.dy.toFixed(1)}%` : '--'}
                                                 </span>
                                             </div>
+
+                                            {/* Slot 2: P/VP */}
                                             <div className="p-3 bg-white/5 rounded-2xl border border-[var(--border-subtle)] flex flex-col items-center justify-center">
                                                 <span className="block text-[7px] text-[var(--text-secondary)] font-black uppercase mb-1 tracking-tighter opacity-70">P/VP</span>
-                                                <span className="text-[11px] font-black">{op.fundamentals.pvp?.toFixed(2) || '--'}</span>
+                                                <span className={`text-[11px] font-black ${(op.fundamentals.pvp ?? 0) < 1.0 ? 'text-emerald-400' : ''}`}>
+                                                    {op.fundamentals.pvp != null ? op.fundamentals.pvp.toFixed(2) : '--'}
+                                                </span>
                                             </div>
+
+                                            {/* Slot 3: ROE / P/L */}
                                             <div className="p-3 bg-white/5 rounded-2xl border border-[var(--border-subtle)] flex flex-col items-center justify-center">
-                                                <span className="block text-[7px] text-[var(--text-secondary)] font-black uppercase mb-1 tracking-tighter opacity-70">ROE</span>
-                                                <span className={`text-[11px] font-black ${(op.fundamentals.roe ?? 0) > 15 ? 'text-emerald-500' : ''}`}>
+                                                <span className="block text-[7px] text-[var(--text-secondary)] font-black uppercase mb-1 tracking-tighter opacity-70">
+                                                    {op.isFII ? 'P/L' : 'ROE'}
+                                                </span>
+                                                <span className={`text-[11px] font-black ${!op.isFII && (op.fundamentals.roe ?? 0) > 15 ? 'text-emerald-400' : ''}`}>
                                                     {(() => {
-                                                        const val = op.fundamentals.roe;
-                                                        return (val !== undefined && val !== null) ? `${val.toFixed(1)}%` : '--';
+                                                        const val = op.isFII ? op.fundamentals.pe : op.fundamentals.roe;
+                                                        if (val == null || val === 0) return '--';
+                                                        return op.isFII ? val.toFixed(1) : `${val.toFixed(1)}%`;
                                                     })()}
                                                 </span>
                                             </div>

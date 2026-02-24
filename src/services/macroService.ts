@@ -33,9 +33,9 @@ export const macroService = {
             // 1. Busca indicadores macro reais (SELIC, CDI, IPCA)
             try {
                 const [selicRes, cdiRes, ipcaRes] = await Promise.all([
-                    fetch(`https://brapi.dev/api/v2/macro/selic?token=${BRAPI_TOKEN}`).then(r => r.json()),
-                    fetch(`https://brapi.dev/api/v2/macro/cdi?token=${BRAPI_TOKEN}`).then(r => r.json()),
-                    fetch(`https://brapi.dev/api/v2/macro/ipca?token=${BRAPI_TOKEN}`).then(r => r.json())
+                    fetch(`https://brapi.dev/api/v2/macro/selic?token=${BRAPI_TOKEN}`).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+                    fetch(`https://brapi.dev/api/v2/macro/cdi?token=${BRAPI_TOKEN}`).then(r => { if (!r.ok) throw new Error(); return r.json(); }),
+                    fetch(`https://brapi.dev/api/v2/macro/ipca?token=${BRAPI_TOKEN}`).then(r => { if (!r.ok) throw new Error(); return r.json(); })
                 ]);
 
                 const lastSelic = selicRes.selic?.[selicRes.selic.length - 1];

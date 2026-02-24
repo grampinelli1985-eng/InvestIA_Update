@@ -70,17 +70,20 @@ export const marketService = {
 
                     data.results?.forEach((r: any) => {
                         const symbol = r.symbol;
-                        // Tenta mapear de volta para o ticker original (sem .SA)
                         const cleanSymbol = symbol.replace('.SA', '');
 
-                        // Busca Profunda para métricas
                         const deepFetch = (obj: any, keys: string[]): any => {
                             if (!obj || typeof obj !== 'object') return undefined;
+                            // 1. Check direct keys first
                             for (const key of keys) {
-                                if (obj[key] !== undefined && obj[key] !== null) return obj[key];
+                                if (obj[key] !== undefined && obj[key] !== null) {
+                                    const val = typeof obj[key] === 'object' && obj[key].raw !== undefined ? obj[key].raw : obj[key];
+                                    if (val !== undefined && val !== null) return val;
+                                }
                             }
+                            // 2. Recursive check
                             for (const k in obj) {
-                                if (k === 'historicalDataPrice') continue;
+                                if (['historicalDataPrice', 'results'].includes(k)) continue;
                                 const found = deepFetch(obj[k], keys);
                                 if (found !== undefined) return found;
                             }
@@ -95,16 +98,23 @@ export const marketService = {
                         const pe = rawPe != null ? Number(rawPe) : undefined;
                         const pb = rawPb != null ? Number(rawPb) : undefined;
 
-                        // Normalização unificada de Yield e ROE
                         const normalizePercent = (val: any) => {
                             if (val == null) return undefined;
                             const n = Number(val);
                             // Se o valor for decimal pequeno (ex: 0.05), converte para percentual (5%)
-                            // A maioria das APIs retorna 0.05 para 5% ou 5 para 5%. 
                             // Assumimos que se for < 1 (e não zero), é decimal.
+                            // Para Yield, valores acima de 0.5 (50%) são improváveis como decimais brutos, 
+                            // a menos que seja algo como 5.0 (5%).
                             if (Math.abs(n) > 0 && Math.abs(n) < 1) return n * 100;
                             return n;
                         };
+
+                        // Correção da lógica de ROE: ROE = (P/VP) / (P/L) = PVP / PE
+                        // Se não tiver ROE bruto, tenta calcular
+                        let roe = normalizePercent(rawRoe);
+                        if (roe === undefined && pe && pb && pe > 0) {
+                            roe = (pb / pe) * 100;
+                        }
 
                         resultsMap[cleanSymbol] = {
                             symbol: symbol,
@@ -115,10 +125,9 @@ export const marketService = {
                             pe,
                             pb,
                             dy: normalizePercent(rawDy),
-                            roe: normalizePercent(rawRoe)
+                            roe
                         };
 
-                        // Também guarda com o símbolo original da API para garantir
                         resultsMap[symbol] = resultsMap[cleanSymbol];
                     });
 
